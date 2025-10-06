@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Team Break Dashboard — 2D SVG Characters</title>
+<style>
+  :root{
+    --bg1: #eef2ff; --card: #ffffff; --muted:#6b7280; --accent:#7c5cff;
+  }
+  body{ margin:0; font-family:Inter,Segoe UI,system-ui,Arial; background:linear-gradient(180deg,var(--bg1),#fff 40%); color:#111; padding:22px; }
+  .wrap{ max-width:1200px; margin:0 auto; display:grid; grid-template-columns:360px 1fr; gap:20px; align-items:start; }
+
+  /* control panel */
+  .panel{ background:var(--card); border-radius:14px; padding:16px; box-shadow:0 10px 30px rgba(15,23,42,0.06); }
+  h2{ margin:0 0 8px; font-size:18px; }
+  p.lead{ margin:0 0 12px; color:var(--muted); font-size:13px; }
+  label{ display:block; font-size:13px; margin-top:10px; color:#374151; }
+  select,input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6e9f2; margin-top:6px; font-size:14px; box-sizing:border-box; }
+  .controls{ display:flex; gap:8px; margin-top:12px; }
+  button{ padding:10px 12px; border-radius:10px; border:0; cursor:pointer; font-weight:700; }
+  .primary{ background:linear-gradient(90deg,var(--accent),#9b6bff); color:white; box-shadow:0 8px 22px rgba(124,92,255,0.16); }
+  .secondary{ background:#f3f4f6; color:#111; }
+  .tiny{ font-size:12px; color:var(--muted); }
+
+  /* grid of characters */
+  .stage{ display:grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap:12px; }
+  .card{ background:var(--card); border-radius:12px; padding:10px; box-shadow:0 6px 18px rgba(12,18,32,0.04); text-align:center; position:relative; overflow:visible; }
+  .char-svg{ width:110px; height:110px; display:block; margin: 4px auto 6px; }
+  .char-name{ font-weight:700; font-size:13px; color:#111; }
+  .char-status{ font-size:12px; color:var(--muted); margin-top:4px; min-height:18px; }
+
+  /* simple idle bob */
+  .idle .body { transform-origin:center bottom; animation: idleBob 3s ease-in-out infinite; }
+  @keyframes idleBob { 0%{ transform: translateY(0)} 50%{ transform: translateY(-4px)} 100%{transform:translateY(0)} }
+
+  /* drink animation */
+  .drinking .hand { transform-origin: 12px 20px; animation: handDrink 1.1s linear infinite; }
+  @keyframes handDrink { 0%{ transform: translate(0,0) rotate(-8deg) } 50%{ transform: translate(6px,-18px) rotate(-70deg)} 100%{ transform: translate(0,0) rotate(-8deg)} }
+  .drinking .cup { opacity:1; }
+
+  /* gaming animation (controller bob) */
+  .gaming .controller { transform-origin:center; animation: gamePress 0.5s steps(2) infinite; }
+  @keyframes gamePress { 0%{ transform: translateY(0) } 50%{ transform: translateY(-6px)} 100%{ transform: translateY(0)} }
+
+  /* talking animation (mouth open/close + bubble) */
+  .talking .mouth { transform-origin:center; animation: mouthTalk 0.55s steps(2) infinite; }
+  @keyframes mouthTalk { 0%{ transform: scaleY(1) } 50%{ transform: scaleY(0.25)} 100%{ transform: scaleY(1)} }
+  .talking .speech { opacity:1; transform: translateY(0); animation: speechPop .6s ease-out; }
+  @keyframes speechPop { from{ opacity:0; transform: translateY(6px)} to{ opacity:1; transform: translateY(0)} }
+
+  /* sleeping (head tilt + z's) */
+  .sleeping .head { transform-origin:center; animation: headNod 3s linear infinite; }
+  @keyframes headNod { 0%{ transform: rotate(0deg) } 50%{ transform: rotate(8deg) } 100%{ transform: rotate(0deg) } }
+  .sleeping .z { opacity:1; animation: zs 1.6s linear infinite; transform-origin:center; }
+  @keyframes zs { 0%{ transform: translateY(0) scale(0.8); opacity:0 } 50%{ transform: translateY(-14px) scale(1); opacity:1 } 100%{ transform: translateY(-28px) scale(1.1); opacity:0 } }
+
+  /* walking */
+  .walking .card { animation: walkPulse 0.9s ease-in-out infinite; }
+  @keyframes walkPulse { 0%{ transform: translateY(0)} 50%{ transform: translateY(-6px)} 100%{ transform: translateY(0)} }
+
+  /* working typing animation */
+  .working .arm-left, .working .arm-right { transform-origin: center; animation: typing 0.28s steps(2) infinite; }
+  @keyframes typing { 0%{ transform: translateY(0) rotate(0deg)} 50%{ transform: translateY(2px) rotate(2deg)} 100%{ transform: translateY(0) rotate(0deg)} }
+  .working .laptop { transform-origin:center top; animation: laptopGlow 1.2s ease-in-out infinite; }
+  @keyframes laptopGlow { 0%{ transform: scale(1)} 50%{ transform: scale(1.02)} 100%{ transform: scale(1)} }
+
+  /* small badge */
+  .badge{ position:absolute; right:10px; top:10px; background:#eef2ff; color:#334155; padding:6px 8px; border-radius:999px; font-size:12px; font-weight:700; box-shadow:0 6px 12px rgba(15,23,42,0.04) }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <!-- Controls -->
+  <div class="panel">
+    <h2>Team Break Controller</h2>
+    <p class="lead">Choose your name and Start / Stop. Everyone sees who's on break and the fun activity.</p>
+
+    <label for="userSelect">Name</label>
+    <select id="userSelect"><option value="">-- select name --</option></select>
+
+    <label for="datePick">Date</label>
+    <input id="datePick" type="date" />
+
+    <div class="controls">
+      <button id="startBtn" class="primary">Start Break</button>
+      <button id="stopBtn" class="secondary">Stop Break</button>
+      <button id="exportBtn" class="secondary">Export CSV</button>
+    </div>
+
+    <div style="margin-top:12px" class="tiny">Tip: pick your name to avoid typos. Status persists in this browser only.</div>
+  </div>
+
+  <!-- Characters Stage -->
+  <div>
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+      <div class="panel tiny" style="padding:8px; border-radius:10px; flex:1">Team Characters</div>
+      <div class="panel tiny" style="padding:8px; border-radius:10px">Legend:
+        <span style="margin-left:8px"><strong>Idle</strong></span>
+        <span style="margin-left:8px">• <em>drinking</em></span>
+        <span style="margin-left:8px">• <em>gaming</em></span>
+        <span style="margin-left:8px">• <em>talking</em></span>
+        <span style="margin-left:8px">• <em>sleeping</em></span>
+        <span style="margin-left:8px">• <em>walking</em></span>
+      </div>
+    </div>
+
+    <div class="stage" id="stage"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- names ---------- */
+const names = [
+  "Asha AS","Revathi Kumar","Pranesh Krishnamoorthy","Sheeba Rani D","Subham E",
+  "Sunmathy Wilson","Trilokes Sahu","Udhaya Kumari","Afredi","Akshaya Narayanan",
+  "Gopal M","Kamesh D","Manikandan M","Nirosha Banu","Savitha E","Ramya Bharathi. R",
+  "Muzammil Ahamed Hussain","Srinivasan N","Vinod Kumar","Sreenath"
+];
+
+/* actions */
+const breakActions = ['drinking','gaming','talking','sleeping','walking'];
+const stage = document.getElementById('stage');
+const userSelect = document.getElementById('userSelect');
+const datePick = document.getElementById('datePick');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const exportBtn = document.getElementById('exportBtn');
+
+datePick.value = new Date().toISOString().slice(0,10);
+
+/* state (persist in localStorage) */
+const LS = 'team_break_state_v1';
+let state = loadState(); // { entries: [...], characters: { name: {status:'idle'|'break'|'working', action: 'drinking'|'...'} } }
+
+/* create stage cards */
+function makeCard(name, idx){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'card-' + idx;
+  card.innerHTML = `
+    <div class="badge" id="badge-${idx}">Idle</div>
+    <svg class="char-svg" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <!-- legs -->
+      <g class="legs" transform="translate(0,70)">
+        <rect x="34" y="36" width="12" height="30" rx="6" fill="#334155" />
+        <rect x="84" y="36" width="12" height="30" rx="6" fill="#334155" />
+      </g>
+      <!-- body group -->
+      <g class="body" transform="translate(10,10)">
+        <rect class="torso" x="20" y="32" rx="14" width="100" height="64" fill="#7c5cff" />
+        <!-- left arm -->
+        <g class="arm-left" transform="translate(12,30) rotate(-10)">
+          <rect class="arm" x="0" y="0" width="14" height="44" rx="8" fill="#7c5cff" />
+          <circle cx="7" cy="46" r="7" fill="#ffd6a5" />
+        </g>
+        <!-- right arm -->
+        <g class="arm-right" transform="translate(114,30) rotate(10)">
+          <rect class="arm" x="0" y="0" width="14" height="44" rx="8" fill="#7c5cff" />
+          <circle cx="7" cy="46" r="7" fill="#ffd6a5" />
+        </g>
+
+        <!-- accessory placeholders -->
+        <g class="cup" transform="translate(44,10)" opacity="0">
+          <rect x="-6" y="18" rx="3" width="18" height="12" fill="#fff"/>
+          <rect x="-4" y="8" width="14" height="10" rx="3" fill="#c2410c" />
+        </g>
+
+        <g class="controller" transform="translate(44,18)">
+          <rect x="0" y="20" rx="6" width="30" height="14" fill="#111" opacity="0.0"/>
+        </g>
+
+        <g class="laptop" transform="translate(34,12)">
+          <rect x="0" y="36" width="54" height="6" rx="2" fill="#111" opacity="0"/>
+          <rect x="4" y="6" width="46" height="28" rx="4" fill="#e6e9f2" opacity="0"/>
+        </g>
+
+        <!-- head -->
+        <g class="head" transform="translate(26,0)">
+          <circle cx="40" cy="18" r="18" fill="#ffd6a5" />
+          <circle cx="33" cy="15" r="3" fill="#111" />
+          <circle cx="47" cy="15" r="3" fill="#111" />
+          <g class="mouth" transform="translate(28,22)">
+            <path d="M2 4 Q 10 12 18 4" stroke="#374151" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </g>
+          <g class="z" transform="translate(70,-10)" opacity="0">
+            <text x="0" y="0" font-size="18" fill="#94a3b8">Z</text>
+          </g>
+        </g>
+      </g>
+    </svg>
+    <div class="char-name">${escapeHtml(name)}</div>
+    <div class="char-status" id="status-${idx}">Idle</div>
+  `;
+  return card;
+}
+
+/* populate UI and stage */
+function populate(){
+  // dropdown
+  userSelect.innerHTML = '<option value="">-- select name --</option>';
+  names.forEach((n,i)=> {
+    const opt = document.createElement('option'); opt.value = n; opt.textContent = n;
+    userSelect.appendChild(opt);
+    // create character cards
+    const card = makeCard(n,i);
+    stage.appendChild(card);
+    // initial setup for characters state
+    if(!state.characters) state.characters = {};
+    if(!state.characters[n]) state.characters[n] = { status:'idle', action:null, ts:0 };
+  });
+
+  // apply any saved statuses
+  applyStatesToStage();
+}
+
+function applyStatesToStage(){
+  names.forEach((n,i)=>{
+    const info = state.characters[n] || {status:'idle', action:null};
+    setCardState(i, info.status, info.action);
+  });
+}
+
+function setCardState(idx, status, action){
+  const card = document.getElementById('card-'+idx);
+  if(!card) return;
+  // reset classes
+  card.classList.remove('drinking','gaming','talking','sleeping','walking','working','idle');
+  // update badge and status text
+  const badge = document.getElementById('badge-'+idx);
+  const statusTxt = document.getElementById('status-'+idx);
+  statusTxt.textContent = (status==='idle') ? 'Idle' : (status==='break' ? (action || 'on break') : 'Working');
+  badge.textContent = (status==='idle') ? 'Idle' : (status==='break' ? 'On Break' : 'Working');
+  // apply class for visuals
+  if(status==='idle'){ card.classList.add('idle'); hideAllAccessories(card); }
+  else if(status==='break'){
+    card.classList.add(action || 'drinking');
+    showAccessoryFor(card, action);
+  } else if(status==='working'){
+    card.classList.add('working');
+    showAccessoryFor(card, 'working');
+  }
+}
+
+/* accessory helpers to show/hide */
+function hideAllAccessories(card){
+  const cup = card.querySelector('.cup'); if(cup) cup.style.opacity=0;
+  const controller = card.querySelector('.controller rect'); if(controller) controller.style.opacity=0;
+  const speech = card.querySelector('.speech'); if(speech) speech.style.opacity=0;
+  const laptop = card.querySelector('.laptop rect'); if(laptop) laptop.style.opacity=0;
+  const z = card.querySelector('.z'); if(z) z.style.opacity=0;
+}
+function showAccessoryFor(card, action){
+  hideAllAccessories(card);
+  if(action==='drinking'){
+    const cup = card.querySelector('.cup'); if(cup) cup.style.opacity=1;
+  } else if(action==='gaming'){
+    const controller = card.querySelector('.controller rect'); if(controller) controller.style.opacity=1;
+    // also put small controller look
+    const ctrl = card.querySelector('.controller'); if(ctrl) ctrl.querySelector('rect').style.opacity=1;
+  } else if(action==='talking'){
+    // create speech bubble if not present
+    let speech = card.querySelector('.speech');
+    if(!speech){
+      speech = document.createElementNS('http://www.w3.org/2000/svg','g');
+      speech.setAttribute('class','speech');
+      speech.innerHTML = `<rect x="78" y="6" rx="6" width="38" height="18" fill="#fff"/><text x="84" y="18" font-size="10" fill="#334155">Hi!</text>`;
+      card.querySelector('svg').appendChild(speech);
+    }
+    speech.style.opacity=1;
+  } else if(action==='sleeping'){
+    const z = card.querySelector('.z'); if(z) z.style.opacity=1;
+  } else if(action==='walking'){
+    // nothing extra, the card bobs
+  } else if(action==='working'){
+    const laptopRect = card.querySelector('.laptop rect:nth-child(2)');
+    const laptopBase = card.querySelector('.laptop rect:nth-child(1)');
+    if(laptopRect) laptopRect.style.opacity=1;
+    if(laptopBase) laptopBase.style.opacity=1;
+  }
+}
+
+/* ----------------- control behaviors ----------------- */
+populate();
+
+/* load state from localStorage if any */
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return { entries: [], characters: {} };
+}
+
+function saveState(){
+  try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){}
+}
+
+/* pick name and start break */
+startBtn.addEventListener('click', ()=>{
+  const name = userSelect.value;
+  if(!name){ alert('Please select your name'); return; }
+  const idx = names.indexOf(name);
+  if(idx<0) return;
+  // random break action
+  const action = breakActions[Math.floor(Math.random()*breakActions.length)];
+  state.characters[name] = { status:'break', action, ts: Date.now() };
+  saveState();
+  setCardState(idx,'break',action);
+  // record entry start
+  state.entries.push({ name, date: datePick.value, start: new Date().toISOString(), end:null, duration:null });
+  saveState();
+});
+
+/* stop break -> working */
+stopBtn.addEventListener('click', ()=>{
+  const name = userSelect.value;
+  if(!name){ alert('Please select your name'); return; }
+  const idx = names.indexOf(name);
+  if(idx<0) return;
+  // set to working
+  state.characters[name] = { status:'working', action:'working', ts: Date.now() };
+  // close last entry for this user
+  for(let i=state.entries.length-1;i>=0;i--){
+    const e = state.entries[i];
+    if(e.name===name && !e.end){
+      e.end = new Date().toISOString();
+      const durMs = new Date(e.end) - new Date(e.start);
+      e.duration = Math.round(durMs/60000*100)/100 + ' min';
+      break;
+    }
+  }
+  saveState();
+  setCardState(idx,'working','working');
+});
+
+/* export CSV of entries */
+exportBtn.addEventListener('click', ()=>{
+  if(!state.entries || state.entries.length===0){ alert('No entries yet'); return; }
+  const header = ['Name','Date','Start','End','Duration'];
+  const rows = state.entries.map(e => [e.name,e.date,e.start || '', e.end || '', e.duration || '']);
+  const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replaceAll('"','""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `team_breaks_${(new Date()).toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+});
+
+/* reflect persistent states to DOM (every 500ms in case other tabs change) */
+function refreshFromState(){
+  names.forEach((n,i)=>{
+    const s = state.characters[n] || {status:'idle', action:null};
+    setCardState(i, s.status, s.action);
+  });
+  // also update badge colors or timestamps if desired
+}
+setInterval(()=> {
+  // reload state if changed in other tab
+  const raw = localStorage.getItem(LS);
+  if(raw) {
+    try { const parsed = JSON.parse(raw);
+      // shallow compare
+      if(JSON.stringify(parsed.characters)!==JSON.stringify(state.characters) ||
+         JSON.stringify(parsed.entries)!==JSON.stringify(state.entries)) {
+           state = parsed; // adopt changes
+           refreshFromState();
+         }
+    } catch(e){}
+  }
+}, 800);
+
+/* initial render */
+refreshFromState();
+
+/* small escape helper */
+function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+</script>
+</body>
+</html>
